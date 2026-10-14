@@ -160,11 +160,6 @@
 
         <!-- Estado de Usuario, Caja y Reloj en Desktop (md:flex) -->
         <div class="hidden md:flex items-center space-x-3">
-            <!-- Pestaña / Botón de Login Operadores (Visible para clientes / público) -->
-            <button onclick="openUserLoginModal()" id="header-login-btn" class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-blue-500/25 transition border border-blue-400/30 active:scale-95" title="Acceso para Dueño y Empleados con clave PIN">
-                <i data-lucide="shield-check" class="w-4 h-4 text-blue-200"></i>
-                <span>Acceso Operador / Login</span>
-            </button>
 
             <!-- Contenedor de Sesión Activa del Operador (Oculto cuando no hay login) -->
             <div id="header-user-container" class="hidden flex items-center space-x-2">
@@ -201,25 +196,25 @@
             </div>
 
             <!-- Botón / Badge Modo Online (Acceso desde cualquier red) -->
-            <div id="header-online-badge" onclick="openOnlineModal()" class="cursor-pointer flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-950/90 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/70 transition shadow-sm" title="Ver dirección web online y QR para celulares">
+            <div id="header-online-badge" onclick="openOnlineModal()" class="staff-only hidden cursor-pointer flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-950/90 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/70 transition shadow-sm" title="Ver dirección web online y QR para celulares">
                 <i data-lucide="globe" class="w-3.5 h-3.5 text-emerald-400 animate-pulse"></i>
                 <span id="header-online-text">Online</span>
             </div>
 
-            <!-- Botón / Modal Canales Delivery (PedidosYa & Rappi) -->
-            <button onclick="openDeliveryChannelsModal()" class="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-gradient-to-r from-red-600 via-orange-500 to-amber-500 hover:opacity-90 text-white shadow-sm transition" title="Integración con PedidosYa y Rappi (Portales y Pedidos Centralizados)">
+            <!-- Botón / Modal Canales Delivery (PedidosYa & Rappi) (Solo personal) -->
+            <button onclick="openDeliveryChannelsModal()" class="staff-only hidden flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-gradient-to-r from-red-600 via-orange-500 to-amber-500 hover:opacity-90 text-white shadow-sm transition" title="Integración con PedidosYa y Rappi (Portales y Pedidos Centralizados)">
                 <i data-lucide="layers" class="w-3.5 h-3.5"></i>
                 <span class="hidden sm:inline">PedidosYa / Rappi</span>
             </button>
 
             <!-- Botón Descargar APK / App Móvil -->
-            <button onclick="openMobileAppModal()" class="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-sm transition" title="Instalar App Android / Descargar APK">
+            <button onclick="openMobileAppModal()" class="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-sm transition" title="Instalar App Android / PWA">
                 <i data-lucide="smartphone" class="w-3.5 h-3.5"></i>
-                <span class="hidden sm:inline">App Android</span>
+                <span class="hidden sm:inline">Instalar App</span>
             </button>
 
-            <!-- Reloj en vivo -->
-            <div id="header-clock-container" onclick="openDateTimeModal()" class="cursor-pointer flex items-center text-xs text-slate-300 gap-1.5 font-mono bg-slate-800 hover:bg-slate-700 transition px-3 py-1 rounded-lg border border-slate-700" title="Ver / Cambiar Fecha y Hora del Sistema">
+            <!-- Reloj en vivo (Solo personal) -->
+            <div id="header-clock-container" onclick="openDateTimeModal()" class="staff-only hidden cursor-pointer flex items-center text-xs text-slate-300 gap-1.5 font-mono bg-slate-800 hover:bg-slate-700 transition px-3 py-1 rounded-lg border border-slate-700" title="Ver / Cambiar Fecha y Hora del Sistema">
                 <i data-lucide="clock" class="w-3.5 h-3.5 text-slate-400"></i>
                 <span id="live-clock">00:00:00</span>
                 <span id="clock-manual-badge" class="hidden text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1 py-0.2 rounded font-sans font-bold">Manual</span>
@@ -231,6 +226,12 @@
             </button>
             <button onclick="toggleFullscreen()" title="Pantalla Completa (F11)" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition">
                 <i data-lucide="maximize" class="w-4 h-4"></i>
+            </button>
+
+            <!-- Botón Login en la esquina derecha (Visible para clientes para acceder como personal/dueño) -->
+            <button onclick="openUserLoginModal()" id="header-login-btn" class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-500 text-slate-200 text-xs font-bold transition active:scale-95 shadow-sm" title="Acceso para Dueño y Empleados (Editar Menú, Precios, Stock)">
+                <i data-lucide="lock" class="w-3.5 h-3.5 text-amber-400"></i>
+                <span>Acceso Dueño / Personal</span>
             </button>
         </div>
 
@@ -3147,6 +3148,6 @@
     </div>
 
     <!-- Script de lógica de la aplicación -->
-    <script src="/static/js/app.js?v=20261014_1"></script>
+    <script src="/static/js/app.js?v=20261014_2"></script>
 </body>
 </html>
