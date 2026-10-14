@@ -1,0 +1,173 @@
+/* POSBerry Open - Estilos complementarios y reglas de impresión térmica */
+
+:root {
+    --primary-color: #3b82f6;
+    --primary-hover: #2563eb;
+}
+
+/* Scrollbar estilizada y moderna */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.04);
+}
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Animaciones suaves */
+.transition-all-200 {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Estilos de botones táctiles para pantalla POS */
+.pos-touch-btn {
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    transition: transform 0.08s ease, box-shadow 0.08s ease, background-color 0.15s ease;
+}
+.pos-touch-btn:active {
+    transform: scale(0.96);
+}
+
+/* Efecto de pulso en mesas ocupadas o comandas */
+@keyframes soft-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+.pulse-badge {
+    animation: soft-pulse 2s infinite ease-in-out;
+}
+
+/* Reglas de impresión térmica para Tickets y Comprobantes (80mm y 58mm) */
+@media print {
+    body * {
+        visibility: hidden !important;
+    }
+    #thermal-ticket-print, #thermal-ticket-print *, #client-receipt-printable, #client-receipt-printable * {
+        visibility: visible !important;
+    }
+    #thermal-ticket-print, #client-receipt-printable {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 80mm !important;
+        margin: 0 !important;
+        padding: 5mm !important;
+        font-family: 'Courier New', Courier, monospace !important;
+        font-size: 12px !important;
+        line-height: 1.25 !important;
+        color: #000 !important;
+        background: #fff !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+    @page {
+        margin: 0;
+        size: 80mm auto;
+    }
+}
+
+/* Modal backdrop blur */
+.modal-backdrop {
+    background-color: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(4px);
+}
+
+/* Tarjetas de cocina (KDS) */
+.kitchen-card-urgent {
+    border-left: 5px solid #ef4444 !important;
+    animation: pulse-urgent 1.5s infinite alternate;
+}
+@keyframes pulse-urgent {
+    from { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.3); }
+    to { box-shadow: 0 0 12px 2px rgba(239, 68, 68, 0.4); }
+}
+
+.kitchen-card-warn {
+    border-left: 5px solid #f59e0b !important;
+}
+
+.kitchen-card-normal {
+    border-left: 5px solid #10b981 !important;
+}
+
+/* Grid de teclado numérico de cobro */
+.numpad-btn {
+    font-size: 1.25rem;
+    font-weight: 600;
+    padding: 1rem;
+    border-radius: 0.75rem;
+    background-color: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    transition: all 0.1s;
+}
+.numpad-btn:hover {
+    background-color: #e2e8f0;
+}
+.numpad-btn:active {
+    background-color: #cbd5e1;
+    transform: scale(0.95);
+}
+
+/* ==================== ADAPTACIÓN MÓVIL & RESPONSIVA ==================== */
+
+/* Soporte para notch y barras de navegación en iOS / Android */
+.safe-bottom {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+.safe-top {
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+}
+
+/* Deslizado suave hacia arriba para modales y bottom sheets */
+@keyframes slide-up-anim {
+    from {
+        transform: translateY(100%);
+        opacity: 0.8;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.animate-slide-up {
+    animation: slide-up-anim 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Ocultar barra de scroll nativa pero mantener desplazamiento táctil */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Mejor respuesta táctil en móviles sin zoom involuntario */
+html, body {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: contain;
+}
+
+/* En pantallas móviles (< 768px), ajustar el área principal para que el bottom bar no tape el contenido */
+@media (max-width: 767px) {
+    main {
+        padding-bottom: 4rem; /* 64px para el bottom nav */
+    }
+    /* En catálogo POS, evitar que la barra flotante de comanda tape los productos */
+    #pos-products-grid {
+        padding-bottom: 2rem;
+    }
+}
+

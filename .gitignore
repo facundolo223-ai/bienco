@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+*.exe
+*.jar
+*.bat
+android-app/
+apk_decompiled/
+signed_apk/
+*.apk
+extracted_manifest.bin
+id_tunnel*
+test_*.txt
