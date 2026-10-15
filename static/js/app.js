@@ -446,6 +446,12 @@ function navigateTo(viewName) {
         State.ordersLiveInterval = null;
     }
 
+    // Si no está logueado como personal/dueño, solo se permite la vista 'pos' (hacer pedido)
+    if (!isStaffLoggedIn() && viewName !== 'pos') {
+        navigateTo('pos');
+        return;
+    }
+
     // Si el usuario es empleado y trata de entrar a configuración, bloquear
     if (viewName === 'settings' && State.currentUser?.role !== 'admin') {
         alert('Acceso Restringido: Solo el Dueño / Administrador puede acceder a la configuración.');
@@ -4043,6 +4049,7 @@ function applyUserPermissions() {
 
     const loginBtn = document.getElementById('header-login-btn');
     const loginBtnMobile = document.getElementById('header-login-btn-mobile');
+    const appBtnMobile = document.getElementById('header-app-btn-mobile');
     const userContainer = document.getElementById('header-user-container');
     const userMobileContainer = document.getElementById('header-user-mobile-container');
     const staffEls = document.querySelectorAll('.staff-only');
@@ -4052,6 +4059,7 @@ function applyUserPermissions() {
         // MODO PÚBLICO / CLIENTE DIRECTO
         if (loginBtn) loginBtn.classList.remove('hidden');
         if (loginBtnMobile) loginBtnMobile.classList.remove('hidden');
+        if (appBtnMobile) appBtnMobile.classList.remove('hidden');
         if (userContainer) userContainer.classList.add('hidden');
         if (userMobileContainer) userMobileContainer.classList.add('hidden');
 
@@ -4071,6 +4079,7 @@ function applyUserPermissions() {
     // MODO OPERADOR LOGUEADO (DUEÑO O EMPLEADO)
     if (loginBtn) loginBtn.classList.add('hidden');
     if (loginBtnMobile) loginBtnMobile.classList.add('hidden');
+    if (appBtnMobile) appBtnMobile.classList.add('hidden');
     if (userContainer) userContainer.classList.remove('hidden');
     if (userMobileContainer) userMobileContainer.classList.remove('hidden');
 
@@ -4682,6 +4691,10 @@ let currentOrdersStatusSubtab = 'process'; // 'process' | 'ready'
 let cachedOrdersLiveStatus = { in_process: [], ready: [] };
 
 function navigateToOrdersStatus(subtab = 'process') {
+    if (!isStaffLoggedIn()) {
+        navigateTo('pos');
+        return;
+    }
     navigateTo('orders-status');
     setOrdersStatusSubtab(subtab);
 }
@@ -4885,18 +4898,30 @@ function playOrderNotificationSound() {
             });
         });
 
-        // Vibración en dispositivos móviles compatibles
+        // Reproducción de respaldo con elemento Audio bell.wav
+        try {
+            const bellAudio = new Audio('/static/audio/bell.wav');
+            bellAudio.volume = 1.0;
+            bellAudio.play().catch(() => {});
+        } catch (e) {}
+
+        // Vibración en celulares (patrón fuerte)
         if (navigator.vibrate) {
-            navigator.vibrate([300, 150, 300, 150, 400]);
+            try { navigator.vibrate([400, 200, 400, 200, 600]); } catch (e) {}
         }
     } catch (e) {
-        console.warn('Error reproduciendo timbre:', e);
+        console.warn('Error en timbre sonoro:', e);
     }
 }
 
 function testOrderSoundNotification() {
     initStaffAudioAndNotifications();
     playOrderNotificationSound();
+    try {
+        const bellAudio = new Audio('/static/audio/bell.wav');
+        bellAudio.volume = 1.0;
+        bellAudio.play().catch(() => {});
+    } catch (e) {}
     showToast('🔔 ¡Timbre de aviso activado! Sonará cuando entre un pedido.', 'success', 4000);
 }
 
@@ -4976,16 +5001,30 @@ function triggerStaffNewOrderAlert(order) {
         if (window.lucide) lucide.createIcons();
     }
 
-    // 3. Notificación nativa de escritorio / celular del navegador
-    if ("Notification" in window && Notification.permission === "granted") {
-        try {
-            const mode = order.order_type === 'delivery' ? '🛵 Envío a Domicilio' : '🛍️ Retiro en Local';
-            new Notification(`🔔 ¡Nuevo Pedido #${order.id}!`, {
-                body: `${mode} - ${order.customer_name || 'Cliente'} ($${formatMoney(order.total || 0)})`,
-                icon: '/static/icons/icon-192.png',
-                tag: 'order-' + order.id
-            });
-        } catch (e) {}
+    // 3. Notificación nativa de escritorio / celular del navegador (con Service Worker para segundo plano)
+    const notifTitle = `🔔 ¡Nuevo Pedido #${order.id}!`;
+    const mode = order.order_type === 'delivery' ? '🛵 Envío a Domicilio' : '🛍️ Retiro en Local';
+    const notifBody = `${mode} - ${order.customer_name || 'Cliente'} ($${formatMoney(order.total || 0)})`;
+    const notifOptions = {
+        body: notifBody,
+        icon: '/static/icons/icon-192.png',
+        badge: '/static/icons/icon-192.png',
+        vibrate: [400, 200, 400, 200, 600],
+        tag: 'order-' + order.id,
+        requireInteraction: true,
+        data: { url: '/' }
+    };
+
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.ready.then(reg => {
+            reg.showNotification(notifTitle, notifOptions);
+        }).catch(() => {
+            if ("Notification" in window && Notification.permission === "granted") {
+                try { new Notification(notifTitle, notifOptions); } catch (e) {}
+            }
+        });
+    } else if ("Notification" in window && Notification.permission === "granted") {
+        try { new Notification(notifTitle, notifOptions); } catch (e) {}
     }
 
     // 4. Parpadeo de aviso en el título de la pestaña

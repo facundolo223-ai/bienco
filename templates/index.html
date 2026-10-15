@@ -220,11 +220,11 @@
                 <span id="clock-manual-badge" class="hidden text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1 py-0.2 rounded font-sans font-bold">Manual</span>
             </div>
 
-            <!-- Atajos & Pantalla completa -->
+            <!-- Atajos & Pantalla completa (Solo personal) -->
             <button onclick="openShortcutsModal()" title="Ver Atajos de Teclado" class="staff-only hidden p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition">
                 <i data-lucide="keyboard" class="w-4 h-4"></i>
             </button>
-            <button onclick="toggleFullscreen()" title="Pantalla Completa (F11)" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition">
+            <button onclick="toggleFullscreen()" title="Pantalla Completa (F11)" class="staff-only hidden p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition">
                 <i data-lucide="maximize" class="w-4 h-4"></i>
             </button>
 
@@ -237,20 +237,26 @@
 
         <!-- Controles Móviles en el Header (md:hidden) -->
         <div class="flex md:hidden items-center space-x-1.5">
-            <!-- Botón Móvil: En Proceso -->
-            <button onclick="navigateToOrdersStatus('process')" class="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-slate-800 text-amber-400 border border-slate-700 text-xs font-bold" title="Pedidos en Proceso">
+            <!-- Botón Móvil: En Proceso (Solo personal) -->
+            <button onclick="navigateToOrdersStatus('process')" class="staff-only hidden flex items-center gap-1 px-2 py-1.5 rounded-xl bg-slate-800 text-amber-400 border border-slate-700 text-xs font-bold" title="Pedidos en Proceso">
                 <i data-lucide="clock" class="w-3.5 h-3.5"></i>
                 <span id="badge-orders-process-mob" class="text-[10px] bg-amber-500/20 text-amber-300 px-1 rounded-full">0</span>
             </button>
 
-            <!-- Botón Móvil: Listos -->
-            <button onclick="navigateToOrdersStatus('ready')" class="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-slate-800 text-emerald-400 border border-slate-700 text-xs font-bold" title="Pedidos Listos">
+            <!-- Botón Móvil: Listos (Solo personal) -->
+            <button onclick="navigateToOrdersStatus('ready')" class="staff-only hidden flex items-center gap-1 px-2 py-1.5 rounded-xl bg-slate-800 text-emerald-400 border border-slate-700 text-xs font-bold" title="Pedidos Listos">
                 <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
                 <span id="badge-orders-ready-mob" class="text-[10px] bg-emerald-500/20 text-emerald-300 px-1 rounded-full">0</span>
             </button>
 
+            <!-- Botón Móvil: Descargar App (Visible para Clientes) -->
+            <button onclick="openMobileAppModal()" id="header-app-btn-mobile" class="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-400 text-xs font-bold shadow-sm" title="Descargar o Instalar App en el Celular">
+                <i data-lucide="download" class="w-3.5 h-3.5 text-amber-400"></i>
+                <span>App</span>
+            </button>
+
             <!-- Botón Login Móvil para Clientes -->
-            <button onclick="openUserLoginModal()" id="header-login-btn-mobile" class="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold shadow-sm">
+            <button onclick="openUserLoginModal()" id="header-login-btn-mobile" class="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold shadow-sm" title="Acceso Dueño y Empleados">
                 <i data-lucide="lock" class="w-3.5 h-3.5"></i>
                 <span>Login</span>
             </button>
@@ -266,8 +272,8 @@
                 </button>
             </div>
 
-            <!-- Botón Más Opciones / Menú Rápido Móvil -->
-            <button onclick="openMobileMoreMenu()" title="Menú de Opciones" class="p-1.5 rounded-lg bg-slate-800 text-slate-200 hover:text-white transition border border-slate-700">
+            <!-- Botón Más Opciones / Menú Rápido Móvil (Solo personal) -->
+            <button onclick="openMobileMoreMenu()" title="Menú de Opciones" class="staff-only hidden p-1.5 rounded-lg bg-slate-800 text-slate-200 hover:text-white transition border border-slate-700">
                 <i data-lucide="more-vertical" class="w-5 h-5"></i>
             </button>
         </div>
@@ -276,8 +282,8 @@
     <!-- CONTENEDOR PRINCIPAL: SIDEBAR + VISTAS -->
     <div class="flex flex-1 overflow-hidden">
 
-        <!-- SIDEBAR DE NAVEGACIÓN (Desktop: md:flex, Mobile: hidden) -->
-        <nav class="hidden md:flex w-20 lg:w-56 bg-slate-900 border-r border-slate-800 flex-col justify-between py-3 flex-shrink-0 z-20">
+        <!-- SIDEBAR DE NAVEGACIÓN (Desktop: solo visible para personal logueado) -->
+        <nav id="main-sidebar" class="staff-only hidden md:flex w-20 lg:w-56 bg-slate-900 border-r border-slate-800 flex-col justify-between py-3 flex-shrink-0 z-20">
             <div class="space-y-1.5 px-2">
                 <!-- POS Mostrador / Pedidos de Clientes (Siempre visible) -->
                 <button onclick="navigateTo('pos')" id="nav-pos" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition text-white bg-blue-600 shadow-sm">
@@ -285,8 +291,8 @@
                     <span class="hidden lg:inline font-bold">Hacer Pedido</span>
                 </button>
 
-                <!-- Pedido en Proceso (Público / Clientes / Personal) -->
-                <button onclick="navigateToOrdersStatus('process')" id="nav-orders-process" class="nav-item w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/80">
+                <!-- Pedido en Proceso (Solo personal) -->
+                <button onclick="navigateToOrdersStatus('process')" id="nav-orders-process" class="staff-only hidden nav-item w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/80">
                     <div class="flex items-center gap-3">
                         <i data-lucide="clock" class="w-5 h-5 flex-shrink-0 text-amber-400"></i>
                         <span class="hidden lg:inline">Pedido en Proceso</span>
@@ -294,8 +300,8 @@
                     <span id="badge-orders-process" class="text-xs bg-amber-500/20 text-amber-300 border border-amber-400/30 font-bold px-2 py-0.5 rounded-full">0</span>
                 </button>
 
-                <!-- Pedido Listo (Público / Clientes / Personal) -->
-                <button onclick="navigateToOrdersStatus('ready')" id="nav-orders-ready" class="nav-item w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/80">
+                <!-- Pedido Listo (Solo personal) -->
+                <button onclick="navigateToOrdersStatus('ready')" id="nav-orders-ready" class="staff-only hidden nav-item w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/80">
                     <div class="flex items-center gap-3">
                         <i data-lucide="check-circle-2" class="w-5 h-5 flex-shrink-0 text-emerald-400"></i>
                         <span class="hidden lg:inline">Pedido Listo</span>
@@ -388,8 +394,8 @@
                 <div class="flex-1 flex flex-col h-full overflow-hidden border-r border-slate-200">
                     <!-- Barra de Categorías y Buscador -->
                     <div class="bg-white p-3 border-b border-slate-200 space-y-2 shadow-sm">
-                        <!-- PESTAÑAS MÓVILES DESTACADAS (Solo visible en Celulares: Hacer Pedido | En Proceso | Pedido Listo) -->
-                        <div class="flex md:hidden bg-slate-900 p-1 rounded-2xl border border-slate-800 gap-1 shadow-inner">
+                        <!-- PESTAÑAS MÓVILES DESTACADAS (Solo visible para personal logueado) -->
+                        <div class="staff-only hidden flex md:hidden bg-slate-900 p-1 rounded-2xl border border-slate-800 gap-1 shadow-inner">
                             <button onclick="navigateTo('pos')" id="mob-top-tab-pos"
                                 class="flex-1 py-2 px-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition bg-blue-600 text-white shadow-sm">
                                 <i data-lucide="shopping-cart" class="w-3.5 h-3.5"></i>
@@ -413,20 +419,20 @@
                             <!-- Buscador en tiempo real y Lector de Códigos -->
                             <div class="relative flex-1">
                                 <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
-                                <input type="text" id="pos-search-input" placeholder="Buscar producto por nombre o escanear código de barras (F2)..." 
+                                <input type="text" id="pos-search-input" placeholder="Buscar empanadas, pizzas, promos..." 
                                     class="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
                                     autocomplete="off">
                                 <button onclick="clearPosSearch()" id="pos-search-clear" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                                     <i data-lucide="x" class="w-4 h-4"></i>
                                 </button>
                             </div>
-                            <!-- Botón Cargar Fotos (Productos y Promociones) -->
-                            <button onclick="openPhotoManagerModal()" id="pos-btn-photo-manager" title="Cargar y Gestionar Fotos de Productos y Promociones" class="p-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl shadow-sm transition flex items-center gap-1.5 text-xs font-bold px-3 active:scale-95 flex-shrink-0">
+                            <!-- Botón Cargar Fotos (Solo personal logueado) -->
+                            <button onclick="openPhotoManagerModal()" id="pos-btn-photo-manager" title="Cargar y Gestionar Fotos de Productos y Promociones" class="staff-only hidden p-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl shadow-sm transition flex items-center gap-1.5 text-xs font-bold px-3 active:scale-95 flex-shrink-0">
                                 <i data-lucide="camera" class="w-4 h-4"></i>
                                 <span class="hidden sm:inline">Cargar Fotos</span>
                             </button>
-                            <!-- Botón agregar producto rápido -->
-                            <button onclick="openProductModal()" id="pos-btn-new-product" title="Crear Producto o Promoción Nueva" class="p-2 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-700 rounded-xl border border-slate-200 transition flex items-center gap-1.5 text-xs font-semibold px-2.5 active:scale-95 flex-shrink-0">
+                            <!-- Botón agregar producto rápido (Solo personal logueado) -->
+                            <button onclick="openProductModal()" id="pos-btn-new-product" title="Crear Producto o Promoción Nueva" class="staff-only hidden p-2 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 text-slate-700 rounded-xl border border-slate-200 transition flex items-center gap-1.5 text-xs font-semibold px-2.5 active:scale-95 flex-shrink-0">
                                 <i data-lucide="plus" class="w-4 h-4"></i>
                                 <span class="hidden sm:inline">Nuevo</span>
                             </button>
@@ -2596,8 +2602,8 @@
         </div>
     </div>
 
-    <!-- ==================== BARRA DE NAVEGACIÓN INFERIOR MÓVIL (Fixed Bottom - Siempre Visible en Celulares) ==================== -->
-    <nav id="bottom-nav-mobile" class="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900 border-t border-slate-800 flex items-center justify-around z-40 px-1 safe-bottom shadow-2xl">
+    <!-- ==================== BARRA DE NAVEGACIÓN INFERIOR MÓVIL (Solo visible para personal logueado) ==================== -->
+    <nav id="bottom-nav-mobile" class="staff-only hidden md:hidden fixed bottom-0 left-0 right-0 h-16 bg-slate-900 border-t border-slate-800 flex items-center justify-around z-40 px-1 safe-bottom shadow-2xl">
         <!-- Tab 1: Hacer Pedido / Catálogo -->
         <button onclick="navigateTo('pos')" id="mob-nav-pos" class="flex-1 flex flex-col items-center justify-center py-1 text-blue-500 transition">
             <div class="relative">
@@ -2606,8 +2612,8 @@
             <span class="text-[10px] font-bold mt-1">Hacer Pedido</span>
         </button>
 
-        <!-- Tab 2: Pedido en Proceso -->
-        <button onclick="navigateToOrdersStatus('process')" id="mob-nav-process" class="flex-1 flex flex-col items-center justify-center py-1 text-slate-400 hover:text-slate-200 transition">
+        <!-- Tab 2: Pedido en Proceso (Personal) -->
+        <button onclick="navigateToOrdersStatus('process')" id="mob-nav-process" class="staff-only hidden flex-1 flex flex-col items-center justify-center py-1 text-slate-400 hover:text-slate-200 transition">
             <div class="relative">
                 <i data-lucide="clock" class="w-5 h-5 text-amber-400"></i>
                 <span id="mob-badge-orders-process" class="absolute -top-1.5 -right-2 text-[9px] bg-amber-500 text-slate-950 font-black px-1 rounded-full">0</span>
@@ -2615,8 +2621,8 @@
             <span class="text-[10px] font-bold mt-1">En Proceso</span>
         </button>
 
-        <!-- Tab 3: Pedido Listo -->
-        <button onclick="navigateToOrdersStatus('ready')" id="mob-nav-ready" class="flex-1 flex flex-col items-center justify-center py-1 text-slate-400 hover:text-slate-200 transition">
+        <!-- Tab 3: Pedido Listo (Personal) -->
+        <button onclick="navigateToOrdersStatus('ready')" id="mob-nav-ready" class="staff-only hidden flex-1 flex flex-col items-center justify-center py-1 text-slate-400 hover:text-slate-200 transition">
             <div class="relative">
                 <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400"></i>
                 <span id="mob-badge-orders-ready" class="absolute -top-1.5 -right-2 text-[9px] bg-emerald-500 text-slate-950 font-black px-1 rounded-full">0</span>
@@ -3148,6 +3154,6 @@
     </div>
 
     <!-- Script de lógica de la aplicación -->
-    <script src="/static/js/app.js?v=20261014_2"></script>
+    <script src="/static/js/app.js?v=20261014_4"></script>
 </body>
 </html>
