@@ -88,6 +88,79 @@ def get_current_datetime_str(conn):
 def get_current_date_str(conn):
     return get_system_datetime_info(conn)["date_str"]
 
+def get_business_hours_status(conn):
+    """
+    Calcula si el local está ABIERTO o CERRADO según la configuración y la hora actual del sistema.
+    """
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT key, value FROM config 
+        WHERE key IN (
+            'schedule_enabled', 'schedule_open_time', 'schedule_close_time',
+            'schedule_days', 'schedule_manual_status', 'schedule_closed_message'
+        )
+    """)
+    cfg = {r["key"]: r["value"] for r in cur.fetchall()}
+    
+    enabled = cfg.get("schedule_enabled", "true").lower() in ("true", "1", "yes")
+    open_time_str = cfg.get("schedule_open_time", "19:00")
+    close_time_str = cfg.get("schedule_close_time", "00:30")
+    days_str = cfg.get("schedule_days", "lunes,martes,miercoles,jueves,viernes,sabado,domingo")
+    manual_status = cfg.get("schedule_manual_status", "auto") # auto | force_open | force_closed
+    closed_msg = cfg.get("schedule_closed_message", "En este momento nuestro local se encuentra cerrado. Abrimos a las {open_time} hs.")
+
+    dt_info = get_system_datetime_info(conn)
+    current_dt = datetime.fromisoformat(dt_info["iso"])
+    current_time_str = current_dt.strftime("%H:%M")
+    
+    days_map = {
+        0: "lunes", 1: "martes", 2: "miercoles", 3: "jueves",
+        4: "viernes", 5: "sabado", 6: "domingo"
+    }
+    current_day = days_map.get(current_dt.weekday(), "lunes")
+    allowed_days = [d.strip().lower() for d in days_str.split(",") if d.strip()]
+
+    if manual_status == "force_open":
+        is_open = True
+        status_label = "Abierto (Manual)"
+    elif manual_status == "force_closed":
+        is_open = False
+        status_label = "Cerrado (Manual)"
+    elif not enabled:
+        is_open = True
+        status_label = "Abierto (Siempre)"
+    else:
+        is_open = False
+        if open_time_str <= close_time_str:
+            if current_day in allowed_days and open_time_str <= current_time_str < close_time_str:
+                is_open = True
+        else:
+            # Cruza medianoche (ej. 19:00 a 01:30)
+            if current_day in allowed_days and current_time_str >= open_time_str:
+                is_open = True
+            yesterday_idx = (current_dt.weekday() - 1) % 7
+            yesterday_day = days_map.get(yesterday_idx, "domingo")
+            if yesterday_day in allowed_days and current_time_str < close_time_str:
+                is_open = True
+                
+        status_label = "Abierto ahora" if is_open else "Cerrado ahora"
+
+    msg = closed_msg.replace("{open_time}", open_time_str).replace("{close_time}", close_time_str)
+
+    return {
+        "is_open": is_open,
+        "status_label": status_label,
+        "enabled": enabled,
+        "open_time": open_time_str,
+        "close_time": close_time_str,
+        "days": days_str,
+        "allowed_days_list": allowed_days,
+        "manual_status": manual_status,
+        "closed_message": msg,
+        "current_time": current_time_str,
+        "current_day": current_day
+    }
+
 
 def get_authenticated_user(conn):
     """
@@ -366,6 +439,42 @@ def api_config_datetime():
     info = get_system_datetime_info(conn)
     conn.close()
     return jsonify({"status": "ok", "message": "Fecha y hora del sistema actualizadas exitosamente", "info": info})
+# ----------------- API HORARIOS DE ATENCIÓN (APERTURA Y CIERRE) -----------------
+@app.route("/api/schedule", methods=["GET", "POST"])
+def api_schedule():
+    conn = get_db_connection()
+    if request.method == "POST":
+        user = get_authenticated_user(conn)
+        if not user:
+            conn.close()
+            return jsonify({"error": "No autorizado: Ingrese como personal o dueño para modificar los horarios."}), 403
+            
+        data = request.json or {}
+        cur = conn.cursor()
+        
+        fields = [
+            ("schedule_enabled", str(data.get("enabled", "true")).lower()),
+            ("schedule_open_time", str(data.get("open_time", "19:00")).strip()),
+            ("schedule_close_time", str(data.get("close_time", "00:30")).strip()),
+            ("schedule_days", str(data.get("days", "lunes,martes,miercoles,jueves,viernes,sabado,domingo")).strip()),
+            ("schedule_manual_status", str(data.get("manual_status", "auto")).strip()),
+            ("schedule_closed_message", str(data.get("closed_message", "En este momento nuestro local se encuentra cerrado. Abrimos a las {open_time} hs.")).strip()),
+        ]
+        
+        for k, v in fields:
+            cur.execute("INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (k, v))
+            
+        cur.execute("INSERT INTO audit_log (user_id, action, entity, entity_id) VALUES (?, 'update_schedule', 'config', NULL)", (user["id"],))
+        conn.commit()
+        
+        status_info = get_business_hours_status(conn)
+        conn.close()
+        return jsonify({"status": "ok", "message": "Horarios guardados exitosamente", "schedule": status_info})
+
+    # GET público
+    status_info = get_business_hours_status(conn)
+    conn.close()
+    return jsonify(status_info)
 
 
 # ----------------- API CATEGORÍAS -----------------

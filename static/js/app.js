@@ -129,6 +129,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadOrdersLiveStatus();
     setInterval(loadOrdersLiveStatus, 4000);
 
+    // Cargar horario de atención y estado del local (Apertura y Cierre)
+    fetchBusinessSchedule();
+    setInterval(fetchBusinessSchedule, 60000);
+
     // Inicializar iconos de Lucide
     if (window.lucide) {
         lucide.createIcons();
@@ -4127,6 +4131,7 @@ function applyUserPermissions() {
         loadSalesHistory(activeSalesDateFilter);
     }
     updateBulkActionsBar();
+    if (typeof updateScheduleUI === 'function') updateScheduleUI(currentBusinessSchedule);
     if (window.lucide) lucide.createIcons();
 }
 
@@ -4244,6 +4249,18 @@ async function submitClientDirectOrder() {
         return;
     }
 
+    // Chequeo de horario de apertura/cierre del local
+    let isScheduledOrder = false;
+    if (currentBusinessSchedule && !currentBusinessSchedule.is_open && !isStaffLoggedIn()) {
+        const confirmSchedule = confirm(
+            `⚠️ En este momento el local se encuentra CERRADO.\n\nHorario de atención: ${currentBusinessSchedule.open_time} a ${currentBusinessSchedule.close_time} hs.\n\n¿Deseas enviar el pedido por WhatsApp de todas formas para dejarlo PROGRAMADO para cuando abramos?`
+        );
+        if (!confirmSchedule) {
+            return;
+        }
+        isScheduledOrder = true;
+    }
+
     const rawSubtotal = State.currentCart.items.reduce((acc, i) => acc + i.subtotal, 0);
     const total = rawSubtotal;
 
@@ -4270,6 +4287,7 @@ async function submitClientDirectOrder() {
             order_type: clientCurrentOrderType,
             customer_name: customerName,
             customer_phone: customerPhone,
+            is_scheduled: isScheduledOrder,
             delivery_address: clientCurrentOrderType === 'delivery' ? deliveryAddress : 'Retiro en el local',
             delivery_notes: deliveryNotes,
             payment_method: (currentPosOrderChannel !== 'local') ? `Plataforma (${currentPosOrderChannel.toUpperCase()})` : paymentMethod,
@@ -4594,7 +4612,12 @@ function buildWhatsAppOrderMessage(ord) {
     const orderId = ord.id || ord.order_id || '';
     const isDelivery = ord.order_type === 'delivery';
 
-    let msg = `👋 *¡HOLA ${bizName.toUpperCase()}! NUEVO PEDIDO #${orderId}*\n\n`;
+    let msg = '';
+    if (ord.is_scheduled) {
+        const schedOpen = currentBusinessSchedule ? currentBusinessSchedule.open_time : '19:00';
+        msg += `⏰ *[PEDIDO PROGRAMADO / FUERA DE HORARIO]*\n_(Se procesará al abrir: ${schedOpen} hs)_\n\n`;
+    }
+    msg += `👋 *¡HOLA ${bizName.toUpperCase()}! NUEVO PEDIDO #${orderId}*\n\n`;
     msg += `👤 *Cliente:* ${ord.customer_name || 'Cliente'}\n`;
     if (ord.customer_phone) msg += `📞 *Teléfono:* ${ord.customer_phone}\n`;
     msg += `📦 *Modalidad:* ${isDelivery ? '🛵 Envío a Domicilio' : '🛍️ Retiro en el Local'}\n`;
@@ -5756,6 +5779,164 @@ function copyWebhookUrl(channel) {
         });
     }
 }
+
+// ==================== HORARIOS DE ATENCIÓN (APERTURA Y CIERRE) ====================
+let currentBusinessSchedule = null;
+
+async function fetchBusinessSchedule() {
+    try {
+        const res = await fetch('/api/schedule');
+        const data = await res.json();
+        currentBusinessSchedule = data;
+        updateScheduleUI(data);
+    } catch (e) {
+        console.warn('Error cargando horarios de atención:', e);
+    }
+}
+
+function updateScheduleUI(schedule) {
+    if (!schedule) return;
+
+    // 1. Actualizar Badge en el Header (Solo personal logueado)
+    const headerBtn = document.getElementById('header-schedule-btn');
+    const headerText = document.getElementById('header-schedule-text');
+    if (headerText) {
+        const statusMini = schedule.is_open ? '🟢 Abierto' : '🔴 Cerrado';
+        headerText.textContent = `${schedule.open_time} a ${schedule.close_time} (${statusMini})`;
+    }
+
+    // 2. Actualizar Banner en el Catálogo de Productos
+    const banner = document.getElementById('catalog-schedule-banner');
+    const pingEl = document.getElementById('catalog-schedule-ping');
+    const dotEl = document.getElementById('catalog-schedule-dot');
+    const statusTextEl = document.getElementById('catalog-schedule-status-text');
+    const subtextEl = document.getElementById('catalog-schedule-subtext');
+    const timeRangeEl = document.getElementById('catalog-schedule-time-range');
+
+    if (banner) {
+        if (schedule.is_open) {
+            banner.className = 'flex items-center justify-between px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-xs transition shadow-xs';
+            if (pingEl) {
+                pingEl.classList.remove('hidden');
+                pingEl.className = 'animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75';
+            }
+            if (dotEl) dotEl.className = 'relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500';
+            if (statusTextEl) {
+                statusTextEl.textContent = 'Abierto ahora';
+                statusTextEl.className = 'font-bold text-emerald-800';
+            }
+            if (subtextEl) {
+                subtextEl.textContent = '• Recibiendo pedidos';
+                subtextEl.className = 'hidden sm:inline text-[11px] text-emerald-600 ml-1.5';
+            }
+            if (timeRangeEl) {
+                timeRangeEl.textContent = `${schedule.open_time} a ${schedule.close_time} hs`;
+                timeRangeEl.className = 'font-semibold text-emerald-700 text-[11px]';
+            }
+        } else {
+            banner.className = 'flex items-center justify-between px-3 py-2 rounded-xl bg-rose-50 border border-rose-200 text-xs transition shadow-xs';
+            if (pingEl) pingEl.classList.add('hidden');
+            if (dotEl) dotEl.className = 'relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500';
+            if (statusTextEl) {
+                statusTextEl.textContent = 'Cerrado por el momento';
+                statusTextEl.className = 'font-bold text-rose-800';
+            }
+            if (subtextEl) {
+                statusTextEl.title = schedule.closed_message || '';
+                subtextEl.textContent = `• Abrimos a las ${schedule.open_time} hs`;
+                subtextEl.className = 'hidden sm:inline text-[11px] text-rose-600 ml-1.5';
+            }
+            if (timeRangeEl) {
+                timeRangeEl.textContent = `${schedule.open_time} a ${schedule.close_time} hs`;
+                timeRangeEl.className = 'font-semibold text-rose-700 text-[11px]';
+            }
+        }
+        if (window.lucide) lucide.createIcons();
+    }
+}
+
+function openScheduleModal() {
+    const modal = document.getElementById('modal-schedule-manager');
+    if (!modal) return;
+
+    if (currentBusinessSchedule) {
+        // Cargar estado manual
+        const statusVal = currentBusinessSchedule.manual_status || 'auto';
+        const radio = document.querySelector(`input[name="schedule-manual-status"][value="${statusVal}"]`);
+        if (radio) radio.checked = true;
+
+        // Horas
+        const openInput = document.getElementById('schedule-open-time-input');
+        const closeInput = document.getElementById('schedule-close-time-input');
+        if (openInput) openInput.value = currentBusinessSchedule.open_time || '19:00';
+        if (closeInput) closeInput.value = currentBusinessSchedule.close_time || '00:30';
+
+        // Días
+        const allowedDays = currentBusinessSchedule.allowed_days_list || [];
+        document.querySelectorAll('.sched-day-checkbox').forEach(cb => {
+            cb.checked = allowedDays.includes(cb.value);
+        });
+
+        // Mensaje de cerrado
+        const msgInput = document.getElementById('schedule-closed-message-input');
+        if (msgInput) {
+            msgInput.value = currentBusinessSchedule.closed_message || '';
+        }
+    }
+
+    modal.classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+}
+
+function closeScheduleModal() {
+    const modal = document.getElementById('modal-schedule-manager');
+    if (modal) modal.classList.add('hidden');
+}
+
+async function saveScheduleSettings() {
+    try {
+        const manualStatusEl = document.querySelector('input[name="schedule-manual-status"]:checked');
+        const manualStatus = manualStatusEl ? manualStatusEl.value : 'auto';
+
+        const openTime = document.getElementById('schedule-open-time-input')?.value || '19:00';
+        const closeTime = document.getElementById('schedule-close-time-input')?.value || '00:30';
+
+        const days = Array.from(document.querySelectorAll('.sched-day-checkbox:checked')).map(cb => cb.value).join(',');
+        const closedMessage = document.getElementById('schedule-closed-message-input')?.value || '';
+
+        const payload = {
+            enabled: true,
+            manual_status: manualStatus,
+            open_time: openTime,
+            close_time: closeTime,
+            days: days || 'lunes,martes,miercoles,jueves,viernes,sabado,domingo',
+            closed_message: closedMessage
+        };
+
+        const res = await fetch('/api/schedule', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-User-Id': State.currentUser ? State.currentUser.id : ''
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (data.status === 'ok') {
+            currentBusinessSchedule = data.schedule;
+            updateScheduleUI(data.schedule);
+            closeScheduleModal();
+            showToast('✅ ¡Horarios de atención actualizados exitosamente!', 'success', 4000);
+        } else {
+            showToast(data.error || 'No se pudieron guardar los horarios', 'error');
+        }
+    } catch (e) {
+        console.error('Error guardando horarios:', e);
+        showToast('Error de conexión al guardar horarios', 'error');
+    }
+}
+
 
 
 

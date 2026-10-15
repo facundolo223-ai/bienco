@@ -290,6 +290,12 @@ def seed_initial_data(conn):
         "enable_kitchen": "1",
         "enable_stock_alerts": "1",
         "dark_mode": "0",
+        "schedule_enabled": "true",
+        "schedule_open_time": "19:00",
+        "schedule_close_time": "00:30",
+        "schedule_days": "lunes,martes,miercoles,jueves,viernes,sabado,domingo",
+        "schedule_manual_status": "auto",
+        "schedule_closed_message": "En este momento nuestro local se encuentra cerrado. Abrimos a las {open_time} hs.",
     }
     for k, v in default_config.items():
         cur.execute("INSERT OR IGNORE INTO config (key, value) VALUES (?, ?)", (k, v))
