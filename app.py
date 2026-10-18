@@ -536,6 +536,10 @@ def api_products():
     conn = get_db_connection()
     cur = conn.cursor()
     if request.method == "POST":
+        user = get_authenticated_user(conn)
+        if not user:
+            conn.close()
+            return jsonify({"error": "Acceso denegado: Debe iniciar sesión para crear productos"}), 403
         data = request.json or {}
         name = data.get("name", "").strip()
         code = data.get("code", "").strip()
@@ -623,6 +627,11 @@ def api_product_detail(prod_id):
         conn.close()
         return jsonify({"status": "ok", "message": "Producto eliminado exitosamente"})
 
+    # Bloque PUT
+    user = get_authenticated_user(conn)
+    if not user:
+        conn.close()
+        return jsonify({"error": "Acceso denegado: Debe iniciar sesión para modificar productos"}), 403
     data = request.json or {}
     try:
         cur.execute("""
@@ -655,6 +664,11 @@ def api_product_set_photo(prod_id):
     if not prod:
         conn.close()
         return jsonify({"error": "Producto no encontrado"}), 404
+
+    user = get_authenticated_user(conn)
+    if not user:
+        conn.close()
+        return jsonify({"error": "Acceso denegado: Debe iniciar sesión para modificar fotos de productos"}), 403
 
     image_url = None
 
@@ -743,6 +757,12 @@ def allowed_file(filename):
 @app.route("/api/upload/image", methods=["POST"])
 def api_upload_image():
     import uuid, time, base64
+    conn = get_db_connection()
+    user = get_authenticated_user(conn)
+    conn.close()
+    if not user:
+        return jsonify({"error": "Acceso denegado: Debe iniciar sesión para subir imágenes"}), 403
+
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
     # 1. Caso multipart/form-data (archivo enviado directamente)

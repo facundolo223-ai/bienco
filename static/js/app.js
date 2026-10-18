@@ -748,11 +748,14 @@ function renderPosProducts() {
                                 ⭐ PROMO
                             </span>
                         ` : ''}
+                        ${isStaffLoggedIn() ? `
                         <button type="button" onclick="event.stopPropagation(); openQuickPhotoModal(${prod.id})" title="Cambiar Foto" class="absolute top-2 right-2 w-7 h-7 rounded-xl bg-slate-900/80 hover:bg-blue-600 text-white flex items-center justify-center transition shadow-md active:scale-90 z-10">
                             <i data-lucide="camera" class="w-3.5 h-3.5"></i>
                         </button>
+                        ` : ''}
                     </div>
                 ` : `
+                    ${isStaffLoggedIn() ? `
                     <div class="w-full h-24 mb-2 rounded-xl bg-slate-50 hover:bg-blue-50/70 border-2 border-dashed border-slate-200 hover:border-blue-400 flex flex-col items-center justify-center relative transition group/cam cursor-pointer" onclick="event.stopPropagation(); openQuickPhotoModal(${prod.id})" title="Toca aquí para cargar la foto">
                         ${isPromo ? `
                             <span class="absolute top-1.5 left-1.5 bg-gradient-to-r from-amber-500 to-rose-500 text-white font-black text-[8px] uppercase tracking-wider px-2 py-0.2 rounded-full shadow-xs flex items-center gap-0.5">
@@ -766,6 +769,13 @@ function renderPosProducts() {
                             <span>+ Cargar Foto</span>
                         </span>
                     </div>
+                    ` : `
+                    <div class="w-full h-24 mb-2 rounded-xl bg-slate-100 flex items-center justify-center">
+                        ${isPromo ? `
+                            <span class="bg-gradient-to-r from-amber-500 to-rose-500 text-white font-black text-[8px] uppercase tracking-wider px-2 py-0.5 rounded-full shadow-xs">⭐ PROMO</span>
+                        ` : `<i data-lucide="image" class="w-8 h-8 text-slate-300 stroke-1"></i>`}
+                    </div>
+                    `}
                 `}
 
                 <div class="space-y-1">
@@ -2241,6 +2251,7 @@ let quickPhotoCurrentProd = null;
 let photoManagerFilter = 'all';
 
 function openQuickPhotoModal(prodId) {
+    if (!isStaffLoggedIn()) { showToast('Solo el personal puede modificar fotos de productos.', 'warn'); return; }
     const prod = State.products.find(p => p.id === prodId);
     if (!prod) return;
     quickPhotoCurrentProd = prod;
@@ -2452,6 +2463,7 @@ async function saveQuickPhoto() {
 
 // ==================== GESTOR MASIVO DE FOTOS ====================
 function openPhotoManagerModal() {
+    if (!isStaffLoggedIn()) return;
     const modal = document.getElementById('modal-photo-manager');
     if (!modal) return;
     modal.classList.remove('hidden');
@@ -2562,6 +2574,7 @@ function renderPhotoManagerList() {
 }
 
 function openProductModal(prod = null) {
+    if (!isStaffLoggedIn()) return;
     const modal = document.getElementById('modal-product');
     const title = document.getElementById('product-modal-title');
     const catSelect = document.getElementById('prod-form-category');
@@ -4075,6 +4088,8 @@ function applyUserPermissions() {
         const currentView = document.querySelector('section:not(.hidden)')?.id;
         if (currentView && currentView !== 'view-pos') {
             navigateTo('pos');
+        } else if (currentView === 'view-pos') {
+            renderPosProducts();
         }
         if (window.lucide) lucide.createIcons();
         return;
@@ -4132,6 +4147,7 @@ function applyUserPermissions() {
     }
     updateBulkActionsBar();
     if (typeof updateScheduleUI === 'function') updateScheduleUI(currentBusinessSchedule);
+    if (typeof renderPosProducts === 'function') renderPosProducts();
     if (window.lucide) lucide.createIcons();
 }
 
