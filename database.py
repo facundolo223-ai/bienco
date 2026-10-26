@@ -52,6 +52,22 @@ def init_db():
     """)
 
     cur.execute("""
+        CREATE TABLE IF NOT EXISTS promotions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            subtitle TEXT DEFAULT '',
+            badge_text TEXT DEFAULT 'PROMO',
+            image_url TEXT DEFAULT '',
+            product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
+            link_url TEXT DEFAULT '',
+            bg_gradient TEXT DEFAULT 'from-orange-500 to-amber-500',
+            is_active INTEGER DEFAULT 1,
+            sort_order INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    cur.execute("""
         CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             code TEXT UNIQUE,
