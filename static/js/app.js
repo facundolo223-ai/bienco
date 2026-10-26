@@ -94,6 +94,9 @@ const State = {
     },
     categories: [],
     products: [],
+    promotions: [],
+    currentPromoIndex: 0,
+    promoCarouselTimer: null,
     currentCart: {
         items: [],
         discountPercent: 0,
@@ -119,6 +122,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadConfig();
     await loadCategories();
     await loadProducts();
+    await loadPromotions();
     await checkCurrentShift();
     initPwaAndOnline();
     
@@ -5952,6 +5956,342 @@ async function saveScheduleSettings() {
         showToast('Error de conexión al guardar horarios', 'error');
     }
 }
+
+// ==================== BANNERS Y CARRUSEL DE PROMOCIONES ====================
+
+async function loadPromotions() {
+    try {
+        const res = await fetch('/api/promotions');
+        const data = await res.json();
+        State.promotions = Array.isArray(data) ? data : [];
+        renderPromotionsBanner();
+    } catch (e) {
+        console.error('Error cargando promociones:', e);
+        State.promotions = [];
+        renderPromotionsBanner();
+    }
+}
+
+function renderPromotionsBanner() {
+    const container = document.getElementById('pos-promotions-banner-container');
+    const slidesEl = document.getElementById('pos-promotions-slides');
+    const dotsEl = document.getElementById('pos-promotions-dots');
+    if (!container || !slidesEl || !dotsEl) return;
+
+    if (!State.promotions || State.promotions.length === 0) {
+        container.classList.add('hidden');
+        if (State.promoCarouselTimer) {
+            clearInterval(State.promoCarouselTimer);
+            State.promoCarouselTimer = null;
+        }
+        return;
+    }
+
+    container.classList.remove('hidden');
+
+    slidesEl.innerHTML = State.promotions.map((p, idx) => {
+        const hasImg = !!(p.image_url && p.image_url.trim());
+        const gradientClass = p.bg_gradient || 'from-orange-500 to-amber-500';
+        const hasProduct = !!p.product_id;
+        const priceTag = p.product_price ? `<span class="bg-white/20 backdrop-blur-xs text-white font-black px-2.5 py-0.5 rounded-lg text-xs font-mono ml-2 border border-white/20">${formatMoney(p.product_price)}</span>` : '';
+
+        return `
+            <div class="w-full flex-shrink-0 relative overflow-hidden bg-gradient-to-r ${gradientClass} text-white p-4 sm:p-5 flex items-center justify-between cursor-pointer select-none transition min-h-[110px] sm:min-h-[130px]"
+                 onclick="handlePromotionClick(${idx})">
+                <div class="relative z-10 max-w-xl pr-4">
+                    <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+                        <span class="bg-white text-slate-900 font-black text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full shadow-xs flex items-center gap-1">
+                            🔥 ${p.badge_text || 'PROMO'}
+                        </span>
+                        ${priceTag}
+                        ${hasProduct ? `<span class="text-[10px] bg-slate-950/40 text-amber-200 font-bold px-2 py-0.5 rounded-full backdrop-blur-xs">Toca para agregar</span>` : ''}
+                    </div>
+                    <h3 class="font-black text-base sm:text-xl tracking-tight leading-snug drop-shadow-sm">${p.title}</h3>
+                    ${p.subtitle ? `<p class="text-xs sm:text-sm text-white/90 font-medium mt-0.5 drop-shadow-xs line-clamp-2">${p.subtitle}</p>` : ''}
+                </div>
+
+                ${hasImg ? `
+                    <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden bg-black/10 border border-white/20 flex-shrink-0 shadow-lg relative group-hover:scale-105 transition-transform duration-300">
+                        <img src="${p.image_url}" alt="${p.title}" class="w-full h-full object-cover">
+                    </div>
+                ` : `
+                    <div class="hidden sm:flex w-20 h-20 rounded-2xl bg-white/10 border border-white/20 flex-shrink-0 items-center justify-center text-white/40">
+                        <i data-lucide="tag" class="w-10 h-10 stroke-1"></i>
+                    </div>
+                `}
+            </div>
+        `;
+    }).join('');
+
+    dotsEl.innerHTML = State.promotions.map((_, idx) => `
+        <span onclick="event.stopPropagation(); goToPromotionSlide(${idx})" class="cursor-pointer pointer-events-auto h-2 rounded-full transition-all duration-300 ${
+            idx === State.currentPromoIndex ? 'w-6 bg-white shadow' : 'w-2 bg-white/50 hover:bg-white/80'
+        }"></span>
+    `).join('');
+
+    updatePromotionSlidePosition();
+
+    // Iniciar temporizador de rotación automática (cada 4.5 segundos)
+    if (State.promoCarouselTimer) clearInterval(State.promoCarouselTimer);
+    if (State.promotions.length > 1) {
+        State.promoCarouselTimer = setInterval(() => {
+            nextPromotionSlide();
+        }, 4500);
+    }
+
+    if (window.lucide) lucide.createIcons();
+}
+
+function updatePromotionSlidePosition() {
+    const slidesEl = document.getElementById('pos-promotions-slides');
+    const dotsEl = document.getElementById('pos-promotions-dots');
+    if (!slidesEl) return;
+
+    if (State.currentPromoIndex >= State.promotions.length) State.currentPromoIndex = 0;
+    if (State.currentPromoIndex < 0) State.currentPromoIndex = Math.max(0, State.promotions.length - 1);
+
+    slidesEl.style.transform = `translateX(-${State.currentPromoIndex * 100}%)`;
+
+    if (dotsEl) {
+        Array.from(dotsEl.children).forEach((dot, idx) => {
+            if (idx === State.currentPromoIndex) {
+                dot.className = 'cursor-pointer pointer-events-auto h-2 rounded-full transition-all duration-300 w-6 bg-white shadow';
+            } else {
+                dot.className = 'cursor-pointer pointer-events-auto h-2 rounded-full transition-all duration-300 w-2 bg-white/50 hover:bg-white/80';
+            }
+        });
+    }
+}
+
+function nextPromotionSlide() {
+    if (!State.promotions || State.promotions.length <= 1) return;
+    State.currentPromoIndex = (State.currentPromoIndex + 1) % State.promotions.length;
+    updatePromotionSlidePosition();
+}
+
+function prevPromotionSlide() {
+    if (!State.promotions || State.promotions.length <= 1) return;
+    State.currentPromoIndex = (State.currentPromoIndex - 1 + State.promotions.length) % State.promotions.length;
+    updatePromotionSlidePosition();
+}
+
+function goToPromotionSlide(idx) {
+    State.currentPromoIndex = idx;
+    updatePromotionSlidePosition();
+    if (State.promoCarouselTimer) {
+        clearInterval(State.promoCarouselTimer);
+        State.promoCarouselTimer = setInterval(nextPromotionSlide, 4500);
+    }
+}
+
+function handlePromotionClick(idx) {
+    const promo = State.promotions[idx];
+    if (!promo) return;
+
+    if (promo.product_id) {
+        addToCartById(promo.product_id);
+        showToast(`🛒 "${promo.title}" agregado al pedido`, 'success', 2500);
+    } else if (promo.link_url) {
+        window.open(promo.link_url, '_blank');
+    } else {
+        showToast(`✨ ${promo.title}: ${promo.subtitle || '¡Aprovechá la promo!'}`, 'info', 3000);
+    }
+}
+
+// ----------------- MODAL DE GESTIÓN DE PROMOCIONES -----------------
+
+async function openPromotionManagerModal() {
+    if (State.currentUser?.role !== 'admin') {
+        alert('Acceso restringido: Solo el Administrador / Dueño puede gestionar promociones');
+        return;
+    }
+
+    // Poblar selector de productos vinculables
+    const selectProd = document.getElementById('promo-select-product');
+    if (selectProd) {
+        selectProd.innerHTML = '<option value="">Ninguno (Solo informativo)</option>' +
+            State.products.map(p => `<option value="${p.id}">${p.name} - ${formatMoney(p.sale_price)}</option>`).join('');
+    }
+
+    resetPromotionForm();
+    await refreshPromotionsModalList();
+
+    const modal = document.getElementById('modal-promotion-manager');
+    if (modal) modal.classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+}
+
+function closePromotionManagerModal() {
+    const modal = document.getElementById('modal-promotion-manager');
+    if (modal) modal.classList.add('hidden');
+}
+
+function resetPromotionForm() {
+    const form = document.getElementById('promo-form');
+    if (form) form.reset();
+    document.getElementById('promo-form-id').value = '';
+    document.getElementById('promo-form-title').innerHTML = '<i data-lucide="plus-circle" class="w-3.5 h-3.5 text-amber-500"></i><span>Nueva Promoción o Banner</span>';
+    document.getElementById('promo-form-cancel-btn').classList.add('hidden');
+    document.getElementById('promo-input-badge').value = 'PROMO';
+    document.getElementById('promo-check-active').checked = true;
+    if (window.lucide) lucide.createIcons();
+}
+
+async function refreshPromotionsModalList() {
+    const listEl = document.getElementById('modal-promotions-list');
+    if (!listEl) return;
+
+    try {
+        const res = await fetch('/api/promotions?all=1');
+        const promos = await res.json();
+
+        if (!promos || promos.length === 0) {
+            listEl.innerHTML = `
+                <div class="py-6 text-center text-slate-400 text-xs">
+                    <i data-lucide="sparkles" class="w-8 h-8 mx-auto text-slate-300 mb-1 stroke-1"></i>
+                    No hay promociones registradas aún. ¡Crea la primera arriba!
+                </div>
+            `;
+            if (window.lucide) lucide.createIcons();
+            return;
+        }
+
+        listEl.innerHTML = promos.map(p => `
+            <div class="p-3 bg-white border border-slate-200 rounded-2xl flex items-center justify-between gap-3 shadow-2xs hover:border-slate-300 transition">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0 flex items-center justify-center">
+                        ${p.image_url ? `<img src="${p.image_url}" class="w-full h-full object-cover">` : `<i data-lucide="image" class="w-5 h-5 text-slate-300"></i>`}
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span class="text-[9px] font-black bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded-full uppercase">${p.badge_text || 'PROMO'}</span>
+                            <h4 class="font-bold text-slate-800 text-xs truncate">${p.title}</h4>
+                            ${!p.is_active ? `<span class="text-[9px] bg-slate-200 text-slate-600 px-1.5 py-0.2 rounded-full">Pausada</span>` : ''}
+                        </div>
+                        <p class="text-[11px] text-slate-400 truncate mt-0.5">${p.subtitle || 'Sin subtítulo'}</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-1 flex-shrink-0">
+                    <button type="button" onclick="editPromotionInModal(${p.id})" class="p-2 hover:bg-slate-100 rounded-xl text-blue-600 transition" title="Editar">
+                        <i data-lucide="edit-2" class="w-4 h-4"></i>
+                    </button>
+                    <button type="button" onclick="deletePromotion(${p.id})" class="p-2 hover:bg-rose-50 rounded-xl text-rose-600 transition" title="Eliminar">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+
+        if (window.lucide) lucide.createIcons();
+    } catch (e) {
+        console.error('Error listando promos:', e);
+    }
+}
+
+async function submitPromotion(e) {
+    e.preventDefault();
+    const id = document.getElementById('promo-form-id').value;
+    const payload = {
+        title: document.getElementById('promo-input-title').value.trim(),
+        subtitle: document.getElementById('promo-input-subtitle').value.trim(),
+        badge_text: document.getElementById('promo-input-badge').value.trim() || 'PROMO',
+        product_id: document.getElementById('promo-select-product').value || null,
+        image_url: document.getElementById('promo-input-image').value.trim(),
+        bg_gradient: document.getElementById('promo-select-gradient').value,
+        is_active: document.getElementById('promo-check-active').checked
+    };
+
+    try {
+        const url = id ? `/api/promotions/${id}` : '/api/promotions';
+        const method = id ? 'PUT' : 'POST';
+        const res = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const d = await res.json();
+        if (d.status === 'ok') {
+            resetPromotionForm();
+            await refreshPromotionsModalList();
+            await loadPromotions();
+            showToast('✅ Promoción guardada correctamente', 'success');
+        } else {
+            alert(d.error || 'Error al guardar la promoción');
+        }
+    } catch (err) {
+        console.error('Error guardando promoción:', err);
+        alert('Error de conexión al guardar promoción');
+    }
+}
+
+async function editPromotionInModal(id) {
+    try {
+        const res = await fetch(`/api/promotions/${id}`);
+        const p = await res.json();
+        if (p.error) return alert(p.error);
+
+        document.getElementById('promo-form-id').value = p.id;
+        document.getElementById('promo-input-title').value = p.title || '';
+        document.getElementById('promo-input-subtitle').value = p.subtitle || '';
+        document.getElementById('promo-input-badge').value = p.badge_text || 'PROMO';
+        document.getElementById('promo-select-product').value = p.product_id || '';
+        document.getElementById('promo-input-image').value = p.image_url || '';
+        document.getElementById('promo-select-gradient').value = p.bg_gradient || 'from-orange-500 to-amber-500';
+        document.getElementById('promo-check-active').checked = p.is_active === 1;
+
+        document.getElementById('promo-form-title').innerHTML = '<i data-lucide="edit" class="w-3.5 h-3.5 text-blue-500"></i><span>Editar Promoción #' + p.id + '</span>';
+        document.getElementById('promo-form-cancel-btn').classList.remove('hidden');
+
+        if (window.lucide) lucide.createIcons();
+    } catch (e) {
+        console.error('Error cargando promo para edición:', e);
+    }
+}
+
+async function deletePromotion(id) {
+    if (!confirm('¿Seguro que deseas eliminar esta promoción?')) return;
+    try {
+        const res = await fetch(`/api/promotions/${id}`, { method: 'DELETE' });
+        const d = await res.json();
+        if (d.status === 'ok') {
+            await refreshPromotionsModalList();
+            await loadPromotions();
+            showToast('Promoción eliminada', 'info');
+        } else {
+            alert(d.error || 'Error al eliminar');
+        }
+    } catch (e) {
+        console.error('Error eliminando promoción:', e);
+    }
+}
+
+async function uploadPromoImageFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        showToast('Subiendo imagen...', 'info', 2000);
+        const res = await fetch('/api/upload/image', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        if (data.status === 'ok' && data.url) {
+            document.getElementById('promo-input-image').value = data.url;
+            showToast('✅ Imagen cargada exitosamente', 'success');
+        } else {
+            alert(data.error || 'Error al subir la imagen');
+        }
+    } catch (e) {
+        console.error('Error subiendo imagen:', e);
+        alert('Error al subir la imagen');
+    }
+}
+
 
 
 
