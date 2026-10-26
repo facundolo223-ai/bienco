@@ -530,6 +530,118 @@ def api_category_detail(cat_id):
     conn.close()
     return jsonify({"status": "ok", "message": "Categoría actualizada"})
 
+# ----------------- API PROMOCIONES / BANNERS ROTATIVOS -----------------
+@app.route("/api/promotions", methods=["GET", "POST"])
+def api_promotions():
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    if request.method == "POST":
+        user = get_authenticated_user(conn)
+        if not user or user.get("role") != "admin":
+            conn.close()
+            return jsonify({"error": "Acceso denegado: Solo el Administrador puede gestionar promociones"}), 403
+
+        data = request.json or {}
+        title = (data.get("title") or "").strip()
+        if not title:
+            conn.close()
+            return jsonify({"error": "El título de la promoción es obligatorio"}), 400
+
+        subtitle = (data.get("subtitle") or "").strip()
+        badge_text = (data.get("badge_text") or "PROMO").strip()
+        image_url = (data.get("image_url") or "").strip()
+        product_id = data.get("product_id") or None
+        link_url = (data.get("link_url") or "").strip()
+        bg_gradient = (data.get("bg_gradient") or "from-orange-500 to-amber-500").strip()
+        is_active = 1 if data.get("is_active", True) else 0
+        sort_order = int(data.get("sort_order", 0))
+
+        cur.execute("""
+            INSERT INTO promotions (title, subtitle, badge_text, image_url, product_id, link_url, bg_gradient, is_active, sort_order)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (title, subtitle, badge_text, image_url, product_id, link_url, bg_gradient, is_active, sort_order))
+        promo_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "ok", "id": promo_id, "message": "Promoción creada correctamente"})
+
+    # GET: Listar promociones
+    only_active = request.args.get("all") != "1"
+    query = """
+        SELECT pr.*, p.name as product_name, p.sale_price as product_price, p.image_url as product_image
+        FROM promotions pr
+        LEFT JOIN products p ON pr.product_id = p.id
+    """
+    if only_active:
+        query += " WHERE pr.is_active = 1"
+    query += " ORDER BY pr.sort_order ASC, pr.id DESC"
+
+    cur.execute(query)
+    promos = [dict(r) for r in cur.fetchall()]
+    conn.close()
+    return jsonify(promos)
+
+
+@app.route("/api/promotions/<int:promo_id>", methods=["GET", "PUT", "DELETE"])
+def api_promotion_detail(promo_id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    if request.method == "GET":
+        cur.execute("SELECT * FROM promotions WHERE id = ?", (promo_id,))
+        promo = cur.fetchone()
+        conn.close()
+        if not promo:
+            return jsonify({"error": "Promoción no encontrada"}), 404
+        return jsonify(dict(promo))
+
+    user = get_authenticated_user(conn)
+    if not user or user.get("role") != "admin":
+        conn.close()
+        return jsonify({"error": "Acceso denegado: Solo el Administrador puede modificar promociones"}), 403
+
+    if request.method == "DELETE":
+        cur.execute("DELETE FROM promotions WHERE id = ?", (promo_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "ok", "message": "Promoción eliminada"})
+
+    if request.method == "PUT":
+        data = request.json or {}
+        title = (data.get("title") or "").strip()
+        if not title:
+            conn.close()
+            return jsonify({"error": "El título de la promoción es obligatorio"}), 400
+
+        cur.execute("""
+            UPDATE promotions SET
+                title = ?,
+                subtitle = ?,
+                badge_text = ?,
+                image_url = ?,
+                product_id = ?,
+                link_url = ?,
+                bg_gradient = ?,
+                is_active = ?,
+                sort_order = ?
+            WHERE id = ?
+        """, (
+            title,
+            (data.get("subtitle") or "").strip(),
+            (data.get("badge_text") or "PROMO").strip(),
+            (data.get("image_url") or "").strip(),
+            data.get("product_id") or None,
+            (data.get("link_url") or "").strip(),
+            (data.get("bg_gradient") or "from-orange-500 to-amber-500").strip(),
+            1 if data.get("is_active", True) else 0,
+            int(data.get("sort_order", 0)),
+            promo_id
+        ))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "ok", "message": "Promoción actualizada correctamente"})
+
 # ----------------- API PRODUCTOS -----------------
 @app.route("/api/products", methods=["GET", "POST"])
 def api_products():
